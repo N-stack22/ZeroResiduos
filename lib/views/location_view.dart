@@ -6,59 +6,59 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../controllers/report_controller.dart';
-import '../models/report_model.dart';
+import '../views/details_view.dart';
 import 'package:provider/provider.dart';
-
-class LocationView extends StatefulWidget {
-  const LocationView({Key? key}) : super(key: key);
-
-  @override
-  _LocationViewState createState() => _LocationViewState();
-}
 
 class BotonInteractivo extends StatefulWidget {
   final String texto;
+  final VoidCallback? onTap;
 
-  const BotonInteractivo({Key? key, required this.texto}) : super(key: key);
+  const BotonInteractivo({Key? key, required this.texto, this.onTap})
+    : super(key: key);
 
   @override
   _BotonInteractivoState createState() => _BotonInteractivoState();
 }
 
 class _BotonInteractivoState extends State<BotonInteractivo> {
-  bool _isHovered = false;
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Container(
-        width: 261,
-        height: 62,
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? Colors.white
-              : const Color(0xFF00FFFF), // Azul claro → blanco en hover
-          borderRadius: BorderRadius.circular(11.59),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          widget.texto,
-          style: TextStyle(
-            fontFamily: 'PT Sans',
-            fontWeight: _isHovered
-                ? FontWeight.bold
-                : FontWeight.normal, // Normal o bold según hover
-            fontSize: 22,
-            color: Colors.black,
-            // Si ves un subrayado amarillo, elimina esta línea si está de más:
-            decoration: TextDecoration.none, // Opcional si ya no da warnings
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: 261,
+          height: 62,
+          decoration: BoxDecoration(
+            color: _hovered ? Colors.white : const Color(0xFF00FFFF),
+            borderRadius: BorderRadius.circular(11.59),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            widget.texto,
+            style: TextStyle(
+              fontFamily: 'PT Sans',
+              fontWeight: _hovered ? FontWeight.bold : FontWeight.normal,
+              fontSize: 22,
+              color: Colors.black,
+              decoration: TextDecoration.none,
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class LocationView extends StatefulWidget {
+  const LocationView({Key? key}) : super(key: key);
+
+  @override
+  _LocationViewState createState() => _LocationViewState();
 }
 
 class _LocationViewState extends State<LocationView> {
@@ -549,7 +549,67 @@ class _LocationViewState extends State<LocationView> {
                                     width: 110,
                                   ), // Espacio entre botones
                                   // Botón Continuar
-                                  BotonInteractivo(texto: 'Continuar'),
+                                  BotonInteractivo(
+                                    texto: 'Continuar',
+                                    onTap: () async {
+                                      if (_ubicacionSeleccionada == null) {
+                                        await showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text('Error'),
+                                            content: Text(
+                                              'Debe seleccionar un lugar en el mapa.',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: Navigator.of(
+                                                  context,
+                                                ).pop,
+                                                child: Text('Aceptar'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      final confirmado = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: Text('¿Deseas continuar?'),
+                                          content: Text(
+                                            'Irás a la siguiente pantalla.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: Navigator.of(
+                                                context,
+                                              ).pop,
+                                              child: Text('No'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ); // Confirmado
+                                              },
+                                              child: Text('Sí'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+
+                                      if (confirmado == true) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => DetailsView(),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
