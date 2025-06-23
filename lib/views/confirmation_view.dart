@@ -1,9 +1,22 @@
 // lib/views/location_view.dart
 
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:latlong2/latlong.dart';
 
 class ConfirmationView extends StatelessWidget {
-  const ConfirmationView({Key? key}) : super(key: key);
+  final String tipoResiduo;
+  final double peso;
+  final LatLng ubicacion;
+  final File imagen;
+
+  const ConfirmationView({
+    Key? key,
+    required this.tipoResiduo,
+    required this.peso,
+    required this.ubicacion,
+    required this.imagen,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

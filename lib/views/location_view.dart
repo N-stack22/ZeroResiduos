@@ -601,12 +601,17 @@ class _LocationViewState extends State<LocationView> {
                                       );
 
                                       if (confirmado == true) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => DetailsView(),
-                                          ),
-                                        );
+                                        if (_ubicacionSeleccionada != null) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => DetailsView(
+                                                ubicacionSeleccionada:
+                                                    _ubicacionSeleccionada!,
+                                              ),
+                                            ),
+                                          );
+                                        }
                                       }
                                     },
                                   ),

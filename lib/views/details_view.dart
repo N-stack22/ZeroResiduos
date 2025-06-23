@@ -9,6 +9,12 @@ import '../controllers/report_controller.dart';
 import '../views/location_view.dart';
 import '../views/confirmation_view.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
+import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 
 class BotonInteractivo extends StatefulWidget {
   final String texto;
@@ -56,7 +62,9 @@ class _BotonInteractivoState extends State<BotonInteractivo> {
 }
 
 class DetailsView extends StatefulWidget {
-  const DetailsView({Key? key}) : super(key: key);
+  final LatLng? ubicacionSeleccionada;
+
+  const DetailsView({Key? key, this.ubicacionSeleccionada}) : super(key: key);
 
   @override
   _DetailsViewState createState() => _DetailsViewState();
@@ -65,16 +73,73 @@ class DetailsView extends StatefulWidget {
 class _DetailsViewState extends State<DetailsView> {
   LatLng? _ubicacionSeleccionada;
   String? _tipoResiduo;
+  File? _imagenSeleccionada;
+  final ImagePicker _picker = ImagePicker();
+  bool _subiendoImagen = false;
   final TextEditingController _pesoController = TextEditingController();
 
-  void _seleccionarUbicacion(LatLng point) {
-    setState(() {
-      _ubicacionSeleccionada = point;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _ubicacionSeleccionada = widget.ubicacionSeleccionada;
+  }
+
+  void _seleccionarImagen() async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _imagenSeleccionada = File(pickedFile.path);
+      });
+    }
+  }
+
+  void _mostrarError(BuildContext context, String mensaje) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("Error"),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: Navigator.of(context).pop,
+            child: Text("Aceptar"),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget build(BuildContext context) {
     final controller = Provider.of<MapaController>(context);
+
+    if (_subiendoImagen) {
+      return PopScope(
+        canPop: false, // Evita que se pueda volver atrás
+        child: Scaffold(
+          backgroundColor: Color.fromRGBO(0, 0, 0, 0.5),
+          body: Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 10),
+                  Text("Cargando imagen..."),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Container(
@@ -396,7 +461,7 @@ class _DetailsViewState extends State<DetailsView> {
                                           '1. Indique su ubicación',
                                           style: TextStyle(
                                             fontFamily: 'PT Sans',
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.normal,
                                             fontSize: 21,
                                             color: Colors.black,
                                             decoration: TextDecoration.none,
@@ -416,6 +481,7 @@ class _DetailsViewState extends State<DetailsView> {
                                           '2. Proporcione detalles',
                                           style: TextStyle(
                                             fontFamily: 'PT Sans',
+                                            fontWeight: FontWeight.bold,
                                             fontSize: 21,
                                             color: Colors.black,
                                             decoration: TextDecoration.none,
@@ -594,12 +660,36 @@ class _DetailsViewState extends State<DetailsView> {
                                           // Parte izquierda: imagen + texto
                                           Row(
                                             children: [
-                                              Container(
-                                                width: 81,
-                                                height: 81,
-                                                color: Colors.grey[300],
-                                                child: Icon(Icons.add_a_photo),
+                                              GestureDetector(
+                                                onTap: _seleccionarImagen,
+                                                child: Container(
+                                                  width: 81,
+                                                  height: 81,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[300],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    image:
+                                                        _imagenSeleccionada !=
+                                                            null
+                                                        ? DecorationImage(
+                                                            image: FileImage(
+                                                              _imagenSeleccionada!,
+                                                            ),
+                                                            fit: BoxFit.cover,
+                                                          )
+                                                        : null,
+                                                  ),
+                                                  child:
+                                                      _imagenSeleccionada ==
+                                                          null
+                                                      ? Icon(Icons.add_a_photo)
+                                                      : null,
+                                                ),
                                               ),
+
                                               const SizedBox(width: 24),
                                               Text(
                                                 'Subir una foto.\nTamaño máximo 2 MB',
@@ -611,21 +701,24 @@ class _DetailsViewState extends State<DetailsView> {
                                               ),
                                             ],
                                           ),
+
                                           const Spacer(), // Espacio entre izquierda y derecha
                                           // Botón Buscar
                                           Container(
                                             width: 116,
                                             height: 36,
                                             color: Colors.black,
-
                                             alignment: Alignment.center,
-
-                                            child: Text(
-                                              'Buscar',
-                                              style: TextStyle(
-                                                fontFamily: 'PT Sans',
-                                                fontSize: 24,
-                                                color: Colors.white,
+                                            child: GestureDetector(
+                                              onTap:
+                                                  _seleccionarImagen, // 👈 Agregamos esta línea
+                                              child: Text(
+                                                'Buscar',
+                                                style: TextStyle(
+                                                  fontFamily: 'PT Sans',
+                                                  fontSize: 24,
+                                                  color: Colors.white,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -671,35 +764,89 @@ class _DetailsViewState extends State<DetailsView> {
                                     // Botón Continuar
                                     BotonInteractivo(
                                       texto: 'Continuar',
-                                      onTap: () {
-                                        if (_tipoResiduo == null ||
-                                            _pesoController.text.isEmpty) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: Text('Error'),
-                                              content: Text(
-                                                'Por favor complete todos los campos.',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: Navigator.of(
-                                                    context,
-                                                  ).pop,
-                                                  child: Text('Aceptar'),
-                                                ),
-                                              ],
-                                            ),
+                                      onTap: () async {
+                                        // Validar que todos los campos estén completos
+                                        if (_tipoResiduo == null) {
+                                          _mostrarError(
+                                            context,
+                                            'Debe seleccionar un tipo de residuo.',
                                           );
                                           return;
                                         }
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ConfirmationView(),
+
+                                        if (_pesoController.text.isEmpty ||
+                                            double.tryParse(
+                                                  _pesoController.text,
+                                                ) ==
+                                                null) {
+                                          _mostrarError(
+                                            context,
+                                            'Debe ingresar un peso válido.',
+                                          );
+                                          return;
+                                        }
+
+                                        if (_imagenSeleccionada == null) {
+                                          _mostrarError(
+                                            context,
+                                            'Debe seleccionar una imagen.',
+                                          );
+                                          return;
+                                        }
+
+                                        if (_ubicacionSeleccionada == null) {
+                                          _mostrarError(
+                                            context,
+                                            'Debe seleccionar una ubicación en el mapa.',
+                                          );
+                                          return;
+                                        }
+
+                                        // Si todos los campos están completos, mostrar el popup de confirmación
+                                        final confirmado = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text('¿Enviar reporte?'),
+                                            content: Text(
+                                              '¿Está seguro de enviar este reporte?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: Navigator.of(
+                                                  context,
+                                                ).pop,
+                                                child: Text('No'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                                child: Text('Sí'),
+                                              ),
+                                            ],
                                           ),
                                         );
+
+                                        // Si el usuario confirma, navegar a la pantalla de confirmación
+                                        if (confirmado == true) {
+                                          Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ConfirmationView(
+                                                    tipoResiduo: _tipoResiduo!,
+                                                    peso: double.parse(
+                                                      _pesoController.text,
+                                                    ),
+                                                    ubicacion:
+                                                        _ubicacionSeleccionada!,
+                                                    imagen:
+                                                        _imagenSeleccionada!,
+                                                  ),
+                                            ),
+                                          );
+                                        }
                                       },
                                     ),
                                   ],
