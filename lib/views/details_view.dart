@@ -11,17 +11,14 @@ import '../views/confirmation_view.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:web/web.dart' as web;
-import 'dart:js_interop';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 
 class BotonInteractivo extends StatefulWidget {
   final String texto;
   final VoidCallback? onTap;
 
-  const BotonInteractivo({Key? key, required this.texto, this.onTap})
-    : super(key: key);
+  const BotonInteractivo({super.key, required this.texto, this.onTap});
 
   @override
   _BotonInteractivoState createState() => _BotonInteractivoState();
@@ -64,7 +61,7 @@ class _BotonInteractivoState extends State<BotonInteractivo> {
 class DetailsView extends StatefulWidget {
   final LatLng? ubicacionSeleccionada;
 
-  const DetailsView({Key? key, this.ubicacionSeleccionada}) : super(key: key);
+  const DetailsView({super.key, this.ubicacionSeleccionada});
 
   @override
   _DetailsViewState createState() => _DetailsViewState();
@@ -74,6 +71,7 @@ class _DetailsViewState extends State<DetailsView> {
   LatLng? _ubicacionSeleccionada;
   String? _tipoResiduo;
   File? _imagenSeleccionada;
+  Uint8List? _imagenBytes;
   final ImagePicker _picker = ImagePicker();
   bool _subiendoImagen = false;
   final TextEditingController _pesoController = TextEditingController();
@@ -84,15 +82,35 @@ class _DetailsViewState extends State<DetailsView> {
     _ubicacionSeleccionada = widget.ubicacionSeleccionada;
   }
 
-  void _seleccionarImagen() async {
-    final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-    );
+  Future<void> _seleccionarImagen() async {
+    try {
+      setState(() => _subiendoImagen = true);
 
-    if (pickedFile != null) {
-      setState(() {
-        _imagenSeleccionada = File(pickedFile.path);
-      });
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+      );
+
+      if (pickedFile != null) {
+        if (kIsWeb) {
+          // Para web: usar bytes directamente
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _imagenBytes = bytes;
+            _imagenSeleccionada = null;
+          });
+        } else {
+          // Para móvil: usar File
+          setState(() {
+            _imagenSeleccionada = File(pickedFile.path);
+            _imagenBytes = null;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al seleccionar imagen: $e');
+      _mostrarError(context, 'Error al seleccionar la imagen');
+    } finally {
+      setState(() => _subiendoImagen = false);
     }
   }
 
@@ -112,9 +130,17 @@ class _DetailsViewState extends State<DetailsView> {
     );
   }
 
-  Widget build(BuildContext context) {
-    final controller = Provider.of<MapaController>(context);
+  @override
+  Widget _buildImagePreview() {
+    if (kIsWeb && _imagenBytes != null) {
+      return Image.memory(_imagenBytes!, fit: BoxFit.cover);
+    } else if (!kIsWeb && _imagenSeleccionada != null) {
+      return Image.file(_imagenSeleccionada!, fit: BoxFit.cover);
+    }
+    return const Icon(Icons.add_a_photo, size: 40);
+  }
 
+  Widget build(BuildContext context) {
     if (_subiendoImagen) {
       return PopScope(
         canPop: false, // Evita que se pueda volver atrás
@@ -748,13 +774,7 @@ class _DetailsViewState extends State<DetailsView> {
                                     BotonInteractivo(
                                       texto: 'Atrás',
                                       onTap: () {
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                LocationView(),
-                                          ),
-                                        );
+                                        Navigator.pop(context);
                                       },
                                     ),
 
@@ -765,7 +785,7 @@ class _DetailsViewState extends State<DetailsView> {
                                     BotonInteractivo(
                                       texto: 'Continuar',
                                       onTap: () async {
-                                        // Validar que todos los campos estén completos
+                                        // Validación de campos obligatorios
                                         if (_tipoResiduo == null) {
                                           _mostrarError(
                                             context,
@@ -774,19 +794,27 @@ class _DetailsViewState extends State<DetailsView> {
                                           return;
                                         }
 
+                                        // Validación de peso (mayor a 0)
                                         if (_pesoController.text.isEmpty ||
                                             double.tryParse(
                                                   _pesoController.text,
                                                 ) ==
-                                                null) {
+                                                null ||
+                                            double.parse(
+                                                  _pesoController.text,
+                                                ) <=
+                                                0) {
                                           _mostrarError(
                                             context,
-                                            'Debe ingresar un peso válido.',
+                                            'Ingrese un peso válido mayor a 0 kg.',
                                           );
                                           return;
                                         }
 
-                                        if (_imagenSeleccionada == null) {
+                                        // Validación de imagen según plataforma
+                                        if ((kIsWeb && _imagenBytes == null) ||
+                                            (!kIsWeb &&
+                                                _imagenSeleccionada == null)) {
                                           _mostrarError(
                                             context,
                                             'Debe seleccionar una imagen.',
@@ -794,57 +822,128 @@ class _DetailsViewState extends State<DetailsView> {
                                           return;
                                         }
 
+                                        // Validación de ubicación
                                         if (_ubicacionSeleccionada == null) {
                                           _mostrarError(
                                             context,
-                                            'Debe seleccionar una ubicación en el mapa.',
+                                            'Seleccione una ubicación en el mapa.',
                                           );
                                           return;
                                         }
 
-                                        // Si todos los campos están completos, mostrar el popup de confirmación
+                                        // Obtener el controlador de reportes
+                                        final reportController =
+                                            Provider.of<ReportController>(
+                                              context,
+                                              listen: false,
+                                            );
+
+                                        // Diálogo de confirmación
                                         final confirmado = await showDialog<bool>(
                                           context: context,
                                           builder: (context) => AlertDialog(
-                                            title: Text('¿Enviar reporte?'),
-                                            content: Text(
+                                            title: const Text(
+                                              '¿Enviar reporte?',
+                                            ),
+                                            content: const Text(
                                               '¿Está seguro de enviar este reporte?',
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: Navigator.of(
+                                                onPressed: () => Navigator.pop(
                                                   context,
-                                                ).pop,
-                                                child: Text('No'),
+                                                  false,
+                                                ),
+                                                child: const Text('Cancelar'),
                                               ),
                                               TextButton(
                                                 onPressed: () => Navigator.pop(
                                                   context,
                                                   true,
                                                 ),
-                                                child: Text('Sí'),
+                                                child: const Text('Enviar'),
                                               ),
                                             ],
                                           ),
                                         );
 
-                                        // Si el usuario confirma, navegar a la pantalla de confirmación
-                                        if (confirmado == true) {
-                                          Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  ConfirmationView(
-                                                    tipoResiduo: _tipoResiduo!,
-                                                    peso: double.parse(
-                                                      _pesoController.text,
-                                                    ),
-                                                    ubicacion:
-                                                        _ubicacionSeleccionada!,
-                                                    imagen:
-                                                        _imagenSeleccionada!,
-                                                  ),
+                                        if (confirmado != true) return;
+
+                                        try {
+                                          // Mostrar indicador de carga
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (context) => const PopScope(
+                                              canPop: false,
+                                              child: AlertDialog(
+                                                content: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    CircularProgressIndicator(),
+                                                    SizedBox(height: 16),
+                                                    Text('Enviando reporte...'),
+                                                  ],
+                                                ),
+                                              ),
                                             ),
+                                          );
+
+                                          // Enviar reporte (soporta web y móvil)
+                                          await reportController.submitReport(
+                                            tipoResiduo: _tipoResiduo!,
+                                            peso: double.parse(
+                                              _pesoController.text,
+                                            ),
+                                            ubicacion: _ubicacionSeleccionada!,
+                                            imagen:
+                                                _imagenSeleccionada, // Para móvil
+                                            imagenBytes:
+                                                _imagenBytes, // Para web
+                                          );
+
+                                          // Manejar resultado
+                                          if (reportController.status ==
+                                              ReportStatus.success) {
+                                            Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ConfirmationView(
+                                                      tipoResiduo:
+                                                          _tipoResiduo!,
+                                                      peso: double.parse(
+                                                        _pesoController.text,
+                                                      ),
+                                                      ubicacion:
+                                                          _ubicacionSeleccionada!,
+                                                      imagen:
+                                                          _imagenSeleccionada,
+                                                      imagenBytes: _imagenBytes,
+                                                    ),
+                                              ),
+                                            );
+                                          } else {
+                                            Navigator.pop(
+                                              context,
+                                            ); // Cerrar diálogo de carga
+                                            _mostrarError(
+                                              context,
+                                              reportController.errorMessage ??
+                                                  'Error desconocido al enviar el reporte',
+                                            );
+                                          }
+                                        } catch (e) {
+                                          Navigator.pop(
+                                            context,
+                                          ); // Cerrar diálogo de carga
+                                          _mostrarError(
+                                            context,
+                                            'Error al enviar el reporte: ${e.toString()}',
+                                          );
+                                          debugPrint(
+                                            'Error en submitReport: $e',
                                           );
                                         }
                                       },

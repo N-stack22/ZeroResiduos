@@ -13,8 +13,7 @@ class BotonInteractivo extends StatefulWidget {
   final String texto;
   final VoidCallback? onTap;
 
-  const BotonInteractivo({Key? key, required this.texto, this.onTap})
-    : super(key: key);
+  const BotonInteractivo({super.key, required this.texto, this.onTap});
 
   @override
   _BotonInteractivoState createState() => _BotonInteractivoState();
@@ -55,7 +54,7 @@ class _BotonInteractivoState extends State<BotonInteractivo> {
 }
 
 class LocationView extends StatefulWidget {
-  const LocationView({Key? key}) : super(key: key);
+  const LocationView({super.key});
 
   @override
   _LocationViewState createState() => _LocationViewState();
@@ -70,8 +69,9 @@ class _LocationViewState extends State<LocationView> {
     });
   }
 
+  @override
   Widget build(BuildContext context) {
-    final controller = Provider.of<MapaController>(context);
+    //final controller = Provider.of<MapaController>(context);
 
     return Container(
       width: 1920,

@@ -3,20 +3,41 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 class ConfirmationView extends StatelessWidget {
   final String tipoResiduo;
   final double peso;
   final LatLng ubicacion;
-  final File imagen;
+  final File? imagen;
+  final Uint8List? imagenBytes;
 
   const ConfirmationView({
-    Key? key,
+    super.key,
     required this.tipoResiduo,
     required this.peso,
     required this.ubicacion,
-    required this.imagen,
-  }) : super(key: key);
+    this.imagen,
+    this.imagenBytes,
+  });
+
+  Widget _buildImageWidget() {
+    if (kIsWeb) {
+      return imagenBytes != null
+          ? Image.memory(
+              imagenBytes!,
+              width: 200,
+              height: 200,
+              fit: BoxFit.cover,
+            )
+          : const Icon(Icons.photo, size: 50, color: Colors.white);
+    } else {
+      return imagen != null
+          ? Image.file(imagen!, width: 200, height: 200, fit: BoxFit.cover)
+          : const Icon(Icons.photo, size: 50, color: Colors.white);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -395,8 +416,61 @@ class ConfirmationView extends StatelessWidget {
                               width: 1100,
                               height: 490,
                               color: Colors.black,
+                              padding: const EdgeInsets.all(40),
                               child: Center(
-                                child: Container(), // Vacío por ahora
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      '¡Reporte enviado con éxito!',
+                                      style: TextStyle(
+                                        fontFamily: 'Open Sans',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 36,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 30),
+                                    // Mostrar imagen del residuo
+                                    // Reemplaza el Container que muestra la imagen con esto:
+                                    Container(
+                                      width: 200,
+                                      height: 200,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: Colors.grey[800],
+                                      ),
+                                      child: _buildImageWidget(),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      'Tipo de residuo: $tipoResiduo',
+                                      style: const TextStyle(
+                                        fontFamily: 'Open Sans',
+                                        fontSize: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Peso estimado: ${peso.toStringAsFixed(2)} kg',
+                                      style: const TextStyle(
+                                        fontFamily: 'Open Sans',
+                                        fontSize: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Ubicación: Lat ${ubicacion.latitude.toStringAsFixed(6)}, Lng ${ubicacion.longitude.toStringAsFixed(6)}',
+                                      style: const TextStyle(
+                                        fontFamily: 'Open Sans',
+                                        fontSize: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ), // Vacío por ahora
                               ),
                             ),
 
