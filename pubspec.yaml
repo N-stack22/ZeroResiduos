@@ -51,6 +51,10 @@ dependencies:
   firebase_auth: ^5.6.0
   http: ^1.4.0
 
+  postgrest: ^2.4.2
+  storage_client: ^2.4.0
+  flutter_dotenv: ^5.2.1
+
   universal_html: ^2.2.4
   supabase_flutter: ^2.9.1
 
@@ -72,6 +76,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/images/logo.png
+    - .env
 
   uses-material-design: true
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -3,16 +3,15 @@
 //import 'package:location/location.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../controllers/report_controller.dart';
-import '../views/location_view.dart';
 import '../views/confirmation_view.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BotonInteractivo extends StatefulWidget {
   final String texto;

@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // Para kIsWeb
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart'; // Importante para Firebase
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'views/location_view.dart';
-import 'controllers/report_controller.dart'; // Asegúrate de tener este controlador
-import 'controllers/mapa_controller.dart'; // Si usas MapaController
-import 'firebase_options.dart';
+import 'controllers/report_controller.dart';
+import 'controllers/mapa_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Carga el archivo .env desde la raíz del proyecto
+  await dotenv.load(fileName: ".env");
+
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL']!,
+      anonKey: dotenv.env['SUPABASE_KEY']!,
     );
-    print('✅ Firebase inicializado correctamente');
+    print('✅ Supabase inicializado correctamente');
   } catch (e) {
-    print('❌ Error inicializando Firebase: $e');
+    print('❌ Error inicializando Supabase: $e');
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(child: Text('Error inicializando la aplicación: $e')),
+        ),
+      ),
+    );
+    return;
   }
 
   runApp(MyApp());
@@ -30,14 +41,11 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MapaController()),
-        ChangeNotifierProvider(create: (_) => ReportController()), // Añade esto
+        ChangeNotifierProvider(create: (_) => ReportController()),
       ],
       child: MaterialApp(
         title: 'Reporte de Residuos',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
+        theme: ThemeData(primarySwatch: Colors.blue),
         home: const LocationView(),
         debugShowCheckedModeBanner: false,
       ),

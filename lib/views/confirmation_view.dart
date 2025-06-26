@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ConfirmationView extends StatelessWidget {
   final String tipoResiduo;
@@ -12,6 +13,7 @@ class ConfirmationView extends StatelessWidget {
   final LatLng ubicacion;
   final File? imagen;
   final Uint8List? imagenBytes;
+  final String? imagenUrl;
 
   const ConfirmationView({
     super.key,
@@ -20,23 +22,72 @@ class ConfirmationView extends StatelessWidget {
     required this.ubicacion,
     this.imagen,
     this.imagenBytes,
+    this.imagenUrl,
   });
 
   Widget _buildImageWidget() {
-    if (kIsWeb) {
-      return imagenBytes != null
-          ? Image.memory(
-              imagenBytes!,
-              width: 200,
-              height: 200,
-              fit: BoxFit.cover,
-            )
-          : const Icon(Icons.photo, size: 50, color: Colors.white);
-    } else {
-      return imagen != null
-          ? Image.file(imagen!, width: 200, height: 200, fit: BoxFit.cover)
-          : const Icon(Icons.photo, size: 50, color: Colors.white);
+    // Prioridad 1: Mostrar imagen desde URL de Supabase si está disponible
+    if (imagenUrl != null && imagenUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.network(
+          imagenUrl!,
+          width: 200,
+          height: 200,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return _buildFallbackImage();
+          },
+        ),
+      );
     }
+
+    // Prioridad 2: Mostrar imagen en memoria (caso web)
+    if (kIsWeb && imagenBytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.memory(
+          imagenBytes!,
+          width: 200,
+          height: 200,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    // Prioridad 3: Mostrar imagen desde archivo (caso móvil)
+    if (!kIsWeb && imagen != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.file(imagen!, width: 200, height: 200, fit: BoxFit.cover),
+      );
+    }
+
+    // Caso fallback cuando no hay imagen
+    return _buildFallbackImage();
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      width: 200,
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.grey[800],
+      ),
+      child: const Icon(Icons.photo, size: 50, color: Colors.white),
+    );
   }
 
   @override
@@ -350,15 +401,13 @@ class ConfirmationView extends StatelessWidget {
                                     flex: 261,
                                     child: Container(
                                       height: 62,
-                                      color: const Color(
-                                        0xFF00FF9C,
-                                      ), // Verde claro
+                                      color: Colors.white,
                                       alignment: Alignment.center,
                                       child: Text(
                                         '1. Indique su ubicación',
                                         style: TextStyle(
                                           fontFamily: 'PT Sans',
-                                          fontWeight: FontWeight.bold,
+
                                           fontSize: 21,
                                           color: Colors.black,
                                           decoration: TextDecoration.none,
@@ -391,13 +440,14 @@ class ConfirmationView extends StatelessWidget {
                                     flex: 261,
                                     child: Container(
                                       height: 62,
-                                      color: Colors.white,
+                                      color: const Color(0xFF00FF9C),
                                       alignment: Alignment.center,
                                       child: Text(
                                         '3. Confirmación de envío',
                                         style: TextStyle(
                                           fontFamily: 'PT Sans',
                                           fontSize: 21,
+                                          fontWeight: FontWeight.bold,
                                           color: Colors.black,
                                           decoration: TextDecoration.none,
                                         ),
@@ -419,7 +469,9 @@ class ConfirmationView extends StatelessWidget {
                               padding: const EdgeInsets.all(40),
                               child: Center(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .center, // Centrado vertical
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     const Text(
                                       '¡Reporte enviado con éxito!',
@@ -428,6 +480,7 @@ class ConfirmationView extends StatelessWidget {
                                         fontWeight: FontWeight.bold,
                                         fontSize: 36,
                                         color: Colors.white,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                     const SizedBox(height: 30),
@@ -449,6 +502,7 @@ class ConfirmationView extends StatelessWidget {
                                         fontFamily: 'Open Sans',
                                         fontSize: 24,
                                         color: Colors.white,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                     const SizedBox(height: 10),
@@ -458,6 +512,7 @@ class ConfirmationView extends StatelessWidget {
                                         fontFamily: 'Open Sans',
                                         fontSize: 24,
                                         color: Colors.white,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                     const SizedBox(height: 10),
@@ -467,6 +522,7 @@ class ConfirmationView extends StatelessWidget {
                                         fontFamily: 'Open Sans',
                                         fontSize: 24,
                                         color: Colors.white,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ],
